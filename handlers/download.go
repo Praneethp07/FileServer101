@@ -14,5 +14,6 @@ func Download(w http.ResponseWriter, r *http.Request) {
 	}
 	response := []byte("File is being downloaded....")
 	fmt.Printf("Request body:%s\n", string(bodyBytes))
+
 	w.Write(response)
 }

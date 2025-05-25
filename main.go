@@ -12,7 +12,7 @@ func main() {
 
 	http.HandleFunc("/upload", handlers.Upload)
 	http.HandleFunc("/download", handlers.Download)
-
+	http.HandleFunc("/addUser", handlers.AddNewUser)
 	//start the server
 
 	fmt.Printf("server starting at http://localhost:%d\n", PORT)
