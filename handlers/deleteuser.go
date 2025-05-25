@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"file-server/models"
 	"file-server/utils"
 	"fmt"
 	"net/http"
@@ -11,14 +12,11 @@ import (
 func isPathAvailable(folderPath string) bool {
 	info, err := os.Stat(folderPath)
 	fmt.Println("stats:", info)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
+	return os.IsNotExist(err)
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
-	var creds UserCredentials
+	var creds models.UserCredentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)

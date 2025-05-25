@@ -2,20 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
+	"file-server/models"
 	"file-server/utils"
 	"fmt"
 	"net/http"
 	"os"
 )
 
-type UserCredentials struct {
-	Username string
-	EmailID  string
-	Password string
-}
-
 func AddNewUser(w http.ResponseWriter, r *http.Request) {
-	var creds UserCredentials
+	var creds models.UserCredentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
