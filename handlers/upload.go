@@ -15,21 +15,26 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode JSON credentials from request body
-	var creds models.UserCredentials
-	err := json.NewDecoder(r.Body).Decode(&creds)
-	if err != nil {
-		http.Error(w, "Body is not formatted properly", http.StatusBadRequest)
-		return
-	}
-
 	// Parse the multipart form data (limit 10 MB)
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Failed to parse multipart form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Retrieve the file from the form, form field "file"
+	// Read the credentials JSON string from the "creds" form field
+	credsJSON := r.FormValue("creds")
+	if credsJSON == "" {
+		http.Error(w, "`creds` field is required", http.StatusBadRequest)
+		return
+	}
+
+	var creds models.UserCredentials
+	if err := json.Unmarshal([]byte(credsJSON), &creds); err != nil {
+		http.Error(w, "Failed to parse creds JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve the uploaded file from form field "file"
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Failed to get file from form: "+err.Error(), http.StatusBadRequest)
@@ -37,13 +42,13 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Generate user folder name based on credentials
+	// Generate folder name for the user based on creds
 	folderName := utils.GenerateUserFolder(creds.Username, creds.Password, creds.EmailID)
 
-	// Define base path for storage
+	// Define base storage path
 	baseStoragePath := "./STORAGE"
 
-	// Build full user folder path
+	// Full path for user folder
 	userFolderPath := filepath.Join(baseStoragePath, folderName)
 
 	// Create folder if it doesn't exist
@@ -52,17 +57,16 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Destination path for encrypted file, append ".enc" extension
+	// Destination path for encrypted file (.enc extension appended)
 	dstPath := filepath.Join(userFolderPath, handler.Filename+".enc")
 
-	// Process (compress, encrypt, save) the uploaded file
-	err = utils.ProcessAndStoreFile(file, dstPath, creds)
-	if err != nil {
-		http.Error(w, "Failed to process and store file: "+err.Error(), http.StatusInternalServerError)
+	// Process and store the file (compress, encrypt, save)
+	if err := utils.ProcessAndStoreFile(file, dstPath); err != nil {
+		http.Error(w, "Failed to process and store the file: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Respond success
+	// Success response
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("File uploaded and processed successfully"))
+	w.Write([]byte("Upload successfull"))
 }
