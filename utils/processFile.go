@@ -3,13 +3,13 @@ package utils
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
-
-	"file-server/models" // import credentials from models package
+	// import credentials from models package
 )
 
-func ProcessAndStoreFile(file io.Reader, dstPath string, creds models.UserCredentials) error {
+func ProcessAndStoreFile(file io.Reader, dstPath string) error {
 	// Step 0: Create temp dir for intermediate files
 	tempDir, err := os.MkdirTemp("", "procfile")
 	if err != nil {
@@ -43,5 +43,56 @@ func ProcessAndStoreFile(file io.Reader, dstPath string, creds models.UserCreden
 	}
 
 	// Step 4: Done successfully
+	return nil
+}
+
+func ProcessAndServeFile(w http.ResponseWriter, filePath string) error {
+	// Create temp file for decrypted data
+	decryptedTempFile, err := os.CreateTemp("", "decrypted_*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for decrypted data: %w", err)
+	}
+	defer os.Remove(decryptedTempFile.Name())
+	defer decryptedTempFile.Close()
+
+	// 1. Decrypt the file into the temp decrypted file
+	err = DecryptFile(filePath, decryptedTempFile)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt file: %w", err)
+	}
+
+	// Sync and close decrypted temp file to flush all writes
+	if err = decryptedTempFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync decrypted temp file: %w", err)
+	}
+	if err = decryptedTempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close decrypted temp file: %w", err)
+	}
+
+	// Create temp file for decompressed data
+	decompressedTempFile, err := os.CreateTemp("", "decompressed_*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for decompressed data: %w", err)
+	}
+	defer os.Remove(decompressedTempFile.Name())
+	defer decompressedTempFile.Close()
+
+	// 2. Decompress the decrypted temp file into decompressed temp file
+	err = DecompressFile(decryptedTempFile.Name(), decompressedTempFile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to decompress file: %w", err)
+	}
+
+	// Rewind decompressed file for reading
+	if _, err = decompressedTempFile.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek decompressed temp file: %w", err)
+	}
+
+	// 3. Serve the decompressed file content
+	_, err = io.Copy(w, decompressedTempFile)
+	if err != nil {
+		return fmt.Errorf("failed to write decompressed data to response: %w", err)
+	}
+	
 	return nil
 }
